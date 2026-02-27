@@ -32,6 +32,12 @@ static const char index_html[] = R"rawliteral(
     <label>Claude API Key
       <input id="claudeKey" type="password" placeholder="claude-key">
     </label>
+    <label>Wi-Fi SSID (for API connectivity)
+      <input id="wifiSSID" type="text" placeholder="MyWiFiSSID">
+    </label>
+    <label>Wi-Fi Password
+      <input id="wifiPass" type="password" placeholder="supersecret">
+    </label>
     <label>Input Language
       <select id="inputLanguage"></select>
     </label>
@@ -71,6 +77,8 @@ function makeLangOptions(sel) {
 function populateForm(cfg) {
   document.getElementById('openaiKey').value = cfg.openaiKey || '';
   document.getElementById('claudeKey').value = cfg.claudeKey || '';
+  document.getElementById('wifiSSID').value = cfg.wifiSSID || '';
+  document.getElementById('wifiPass').value = cfg.wifiPass || '';
   document.getElementById('inputLanguage').value = cfg.inputLanguage;
   document.getElementById('outputLanguage').value = cfg.outputLanguage;
   document.getElementById('hubLanguage').value = cfg.hubLanguage;
@@ -89,6 +97,8 @@ function saveConfig(){
   const payload = {
     openaiKey: document.getElementById('openaiKey').value,
     claudeKey: document.getElementById('claudeKey').value,
+    wifiSSID: document.getElementById('wifiSSID').value,
+    wifiPass: document.getElementById('wifiPass').value,
     inputLanguage: parseInt(document.getElementById('inputLanguage').value),
     outputLanguage: parseInt(document.getElementById('outputLanguage').value),
     hubLanguage: parseInt(document.getElementById('hubLanguage').value),
@@ -135,6 +145,11 @@ static void handleSettings() {
   loadAPIKeys(openai, claude);
   doc["openaiKey"] = openai;
   doc["claudeKey"] = claude;
+  // Wi-Fi creds
+  String wifi_ssid, wifi_pass;
+  loadWiFiCredentials(wifi_ssid, wifi_pass);
+  doc["wifiSSID"] = wifi_ssid;
+  doc["wifiPass"] = wifi_pass;
   String out;
   serializeJson(doc, out);
   server.send(200, "application/json", out);
@@ -158,7 +173,10 @@ static void handleSave() {
   if (doc.containsKey("outputDevice")) s.outputDevice = (OutputDevice)(uint8_t)doc["outputDevice"];
   if (doc.containsKey("volume")) s.volume = (int)doc["volume"];
 
+  String wifiSSID = doc["wifiSSID"] | "";
+  String wifiPass = doc["wifiPass"] | "";
   saveAPIKeys(openaiKey, claudeKey);
+  saveWiFiCredentials(wifiSSID, wifiPass);
   saveSettings(s);
 
   server.send(200, "application/json", "{\"ok\":true}");
@@ -173,12 +191,35 @@ static void handleReset() {
 
 static void webTask(void *param) {
   (void)param;
-  // Start soft AP with unique SSID
+  // Start in AP+STA mode so the device can both host configuration UI and connect to user's Wi-Fi
+  WiFi.mode(WIFI_MODE_APSTA);
+
+  // Attempt to connect as a station if Wi-Fi credentials are stored
+  String saved_ssid, saved_pass;
+  loadWiFiCredentials(saved_ssid, saved_pass);
+  if (saved_ssid.length() > 0) {
+    logInfo("Attempting STA connect to WiFi SSID: %s", saved_ssid.c_str());
+    WiFi.begin(saved_ssid.c_str(), saved_pass.c_str());
+    int maxWait = 100; // 100 * 100ms = 10s
+    int waited = 0;
+    while (WiFi.status() != WL_CONNECTED && waited < maxWait) {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      waited++;
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+      IPAddress stIp = WiFi.localIP();
+      logInfo("Connected to WiFi (STA): ssid=%s ip=%s", saved_ssid.c_str(), stIp.toString().c_str());
+    } else {
+      logInfo("WiFi STA connect failed for ssid=%s", saved_ssid.c_str());
+    }
+  }
+
+  // Always start soft AP for configuration portal with unique SSID
   uint64_t chipid = ESP.getEfuseMac();
-  String ssid = String("MultiTrans-") + String((uint32_t)(chipid & 0xFFFF), HEX);
-  WiFi.softAP(ssid.c_str());
+  String ap_ssid = String("MultiTrans-") + String((uint32_t)(chipid & 0xFFFF), HEX);
+  WiFi.softAP(ap_ssid.c_str());
   IPAddress ip = WiFi.softAPIP();
-  logInfo("Web UI AP started: %s ip=%s", ssid.c_str(), ip.toString().c_str());
+  logInfo("Web UI AP started: %s ip=%s", ap_ssid.c_str(), ip.toString().c_str());
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/settings", HTTP_GET, handleSettings);

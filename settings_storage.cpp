@@ -71,3 +71,35 @@ String getClaudeKey() {
   loadAPIKeys(dummy, k);
   return k;
 }
+
+// Wi-Fi credentials storage
+void saveWiFiCredentials(const String &ssid, const String &password) {
+  Preferences prefs;
+  prefs.begin("multi_translator_wifi", false);
+  prefs.putString("ssid", ssid);
+  prefs.putString("pass", password);
+  prefs.end();
+  logInfo("WiFi credentials saved (ssid length=%u, pass length=%u)", ssid.length(), password.length());
+}
+
+void loadWiFiCredentials(String &ssid, String &password) {
+  Preferences prefs;
+  prefs.begin("multi_translator_wifi", true);
+  String def_ssid = String(DEFAULT_WIFI_SSID);
+  String def_pass = String(DEFAULT_WIFI_PASSWORD);
+  ssid = prefs.getString("ssid", def_ssid);
+  password = prefs.getString("pass", def_pass);
+  prefs.end();
+}
+
+String getWiFiSSID() {
+  String s, p;
+  loadWiFiCredentials(s, p);
+  return s;
+}
+
+String getWiFiPassword() {
+  String s, p;
+  loadWiFiCredentials(s, p);
+  return p;
+}

@@ -31,6 +31,17 @@
 #define STATUS_LED_PIN 2
 
 // -----------------------
+// Wi-Fi / Wi-Fi Direct settings
+// -----------------------
+// To set a default Wi-Fi network for the device to automatically connect to for API communication,
+// either edit DEFAULT_WIFI_SSID / DEFAULT_WIFI_PASSWORD here and re-flash the device, or configure
+// the network via the on-device web UI (AP mode). Leaving these empty will require configuring
+// Wi‑Fi via the web portal.
+// The device uses AP+STA (softAP + station) so it can host the configuration portal while also
+// attempting to connect to the user's Wi‑Fi for API communication.
+#define DEFAULT_WIFI_SSID ""
+#define DEFAULT_WIFI_PASSWORD ""
+// -----------------------
 // Audio constants
 // -----------------------
 #define AUDIO_SAMPLE_RATE 16000

@@ -14,4 +14,10 @@ void loadAPIKeys(String &openaiKey, String &claudeKey);
 String getOpenAIKey();
 String getClaudeKey();
 
+// Wi-Fi credentials storage (used for station mode / API connectivity)
+void saveWiFiCredentials(const String &ssid, const String &password);
+void loadWiFiCredentials(String &ssid, String &password);
+String getWiFiSSID();
+String getWiFiPassword();
+
 #endif // SETTINGS_STORAGE_H
